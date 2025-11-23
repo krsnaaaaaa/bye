@@ -482,17 +482,51 @@
   const player = document.getElementById('player');
   const nowPlaying = document.getElementById('nowPlaying');
 
-  // Key for localStorage
-  const LIKE_STORAGE_KEY = 'aestheticMusicPlayerLikes';
+  // Storage key for cross-device persistence
+  const LIKE_STORAGE_KEY = 'byePrincessLikes';
+  const USER_LIKED_KEY = 'byePrincessUserLiked';
 
-  // 🔄 Initialize like state: Retrieve from localStorage or default to 0
-  let likes = parseInt(localStorage.getItem(LIKE_STORAGE_KEY)) || 0;
-  // Each viewer starts with not having liked it
+  // 🔄 Initialize like state
+  let likes = 0;
   let isLiked = false;
+  let isLoading = true;
   
-  // 💾 Function to save the like count to localStorage
-  function saveLikes() {
+  // 💾 Load likes from persistent storage (works across devices)
+  async function loadLikes() {
+    try {
+      // Get total likes count (shared across all users)
+      const likesResult = await window.storage.get(LIKE_STORAGE_KEY, true);
+      likes = likesResult ? parseInt(likesResult.value) || 0 : 0;
+      
+      // Get user's like status (personal to this user)
+      const userLikedResult = await window.storage.get(USER_LIKED_KEY, false);
+      isLiked = userLikedResult ? userLikedResult.value === 'true' : false;
+      
+      isLoading = false;
+      updateUI();
+    } catch (error) {
+      console.error('Error loading likes:', error);
+      // Fallback to localStorage if storage API fails
+      likes = parseInt(localStorage.getItem(LIKE_STORAGE_KEY)) || 0;
+      isLiked = localStorage.getItem(USER_LIKED_KEY) === 'true';
+      isLoading = false;
+      updateUI();
+    }
+  }
+  
+  // 💾 Save likes to persistent storage
+  async function saveLikes() {
+    try {
+      // Save total count (shared)
+      await window.storage.set(LIKE_STORAGE_KEY, likes.toString(), true);
+      // Save user's like status (personal)
+      await window.storage.set(USER_LIKED_KEY, isLiked.toString(), false);
+    } catch (error) {
+      console.error('Error saving likes:', error);
+      // Fallback to localStorage
       localStorage.setItem(LIKE_STORAGE_KEY, likes);
+      localStorage.setItem(USER_LIKED_KEY, isLiked);
+    }
   }
 
   // Update heart appearance
@@ -506,10 +540,16 @@
     }
   }
   
-  // Initialize UI (now includes fetching the stored value)
-  function init() {
+  // Update UI with current data
+  function updateUI() {
     likeCount.textContent = likes;
     updateHeartUI();
+  }
+  
+  // Initialize UI
+  async function init() {
+    likeCount.textContent = '...'; // Loading indicator
+    await loadLikes();
   }
 
   // Play/Pause functionality
@@ -543,24 +583,36 @@
     }
   });
 
-  // Like functionality (Each click toggles and updates total count)
-  heart.addEventListener('click', () => {
+  // Like functionality (synced across devices)
+  heart.addEventListener('click', async () => {
+    if (isLoading) return; // Prevent clicks while loading
+    
+    const previousLikes = likes;
+    const previousIsLiked = isLiked;
+    
     if (!isLiked) {
       // Like the song
       likes++;
       isLiked = true;
+      updateUI();
       createConfetti();
     } else {
       // Unlike the song
       likes--;
       isLiked = false;
+      updateUI();
     }
     
-    // Save the new count to localStorage
-    saveLikes();
-    
-    likeCount.textContent = likes;
-    updateHeartUI();
+    // Save to persistent storage
+    try {
+      await saveLikes();
+    } catch (error) {
+      // Revert on error
+      console.error('Failed to save like:', error);
+      likes = previousLikes;
+      isLiked = previousIsLiked;
+      updateUI();
+    }
   });
 
   // Confetti effect
