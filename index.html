@@ -482,58 +482,112 @@
   const player = document.getElementById('player');
   const nowPlaying = document.getElementById('nowPlaying');
 
-  // Storage key for cross-device persistence
-  const LIKE_STORAGE_KEY = 'byePrincessLikes';
-  const USER_LIKED_KEY = 'byePrincessUserLiked';
-  const SYNC_INTERVAL = 2000; // Check for updates every 2 seconds
+  // API Configuration for cross-device storage
+  // Create your free bin at: https://jsonbin.io/
+  // Replace with your bin ID and API key
+  const API_CONFIG = {
+    binId: '6922cdf243b1c97be9bf994c 	', // Replace with your JSONBin ID
+    apiKey: '$2a$10$4plXoK759mo9BkFoA40Y4.4T3sk/kwuGTaoPZqt.Bn3ICoJji0VJ6', // Replace with your JSONBin API key
+    baseUrl: 'https://api.jsonbin.io/v3/b'
+  };
+  
+  const SYNC_INTERVAL = 3000; // Check for updates every 3 seconds
+  const USE_API = API_CONFIG.binId !== '6922cdf243b1c97be9bf994c 	'; // Auto-detect if API is configured
 
   // 🔄 Initialize like state
   let likes = 0;
+  let likedUsers = new Set(); // Track who liked (by device fingerprint)
+  let deviceId = getDeviceId();
   let isLiked = false;
   let isLoading = true;
   let syncInterval = null;
-  let isSaving = false; // Prevent multiple simultaneous saves
+  let isSaving = false;
   
-  // 💾 Load likes from persistent storage (works across devices)
+  // Generate unique device ID
+  function getDeviceId() {
+    let id = localStorage.getItem('deviceId');
+    if (!id) {
+      id = 'device_' + Math.random().toString(36).substr(2, 9) + Date.now();
+      localStorage.setItem('deviceId', id);
+    }
+    return id;
+  }
+  
+  // 💾 Load likes from API or localStorage
   async function loadLikes() {
     try {
-      // Get total likes count (shared across all users)
-      const likesResult = await window.storage.get(LIKE_STORAGE_KEY, true);
-      likes = likesResult ? parseInt(likesResult.value) || 0 : 0;
+      if (USE_API) {
+        // Load from JSONBin API
+        const response = await fetch(`${API_CONFIG.baseUrl}/${API_CONFIG.binId}/latest`, {
+          headers: {
+            'X-Master-Key': API_CONFIG.apiKey
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const record = data.record;
+          likes = record.likes || 0;
+          likedUsers = new Set(record.likedUsers || []);
+          isLiked = likedUsers.has(deviceId);
+          isLoading = false;
+          updateUI();
+          return;
+        }
+      }
       
-      // Get user's like status (personal to this user)
-      const userLikedResult = await window.storage.get(USER_LIKED_KEY, false);
-      isLiked = userLikedResult ? userLikedResult.value === 'true' : false;
-      
+      // Fallback to localStorage
+      likes = parseInt(localStorage.getItem('likes')) || 0;
+      const storedUsers = localStorage.getItem('likedUsers');
+      likedUsers = storedUsers ? new Set(JSON.parse(storedUsers)) : new Set();
+      isLiked = likedUsers.has(deviceId);
       isLoading = false;
       updateUI();
+      
     } catch (error) {
       console.error('Error loading likes:', error);
-      // Fallback to localStorage if storage API fails
-      likes = parseInt(localStorage.getItem(LIKE_STORAGE_KEY)) || 0;
-      isLiked = localStorage.getItem(USER_LIKED_KEY) === 'true';
+      // Fallback to localStorage on error
+      likes = parseInt(localStorage.getItem('likes')) || 0;
+      const storedUsers = localStorage.getItem('likedUsers');
+      likedUsers = storedUsers ? new Set(JSON.parse(storedUsers)) : new Set();
+      isLiked = likedUsers.has(deviceId);
       isLoading = false;
       updateUI();
     }
   }
   
-  // 💾 Save likes to persistent storage
+  // 💾 Save likes to API and localStorage
   async function saveLikes() {
-    if (isSaving) return; // Prevent race conditions
+    if (isSaving) return;
     isSaving = true;
     
     try {
-      // Save total count (shared across ALL users globally)
-      await window.storage.set(LIKE_STORAGE_KEY, likes.toString(), true);
-      // Save user's like status (personal to this user across their devices)
-      await window.storage.set(USER_LIKED_KEY, isLiked.toString(), false);
+      const data = {
+        likes: likes,
+        likedUsers: Array.from(likedUsers),
+        lastUpdate: new Date().toISOString()
+      };
+      
+      // Save to localStorage immediately
+      localStorage.setItem('likes', likes.toString());
+      localStorage.setItem('likedUsers', JSON.stringify(Array.from(likedUsers)));
+      
+      // Save to API if configured
+      if (USE_API) {
+        await fetch(`${API_CONFIG.baseUrl}/${API_CONFIG.binId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Master-Key': API_CONFIG.apiKey
+          },
+          body: JSON.stringify(data)
+        });
+      }
+      
       isSaving = false;
     } catch (error) {
       console.error('Error saving likes:', error);
       isSaving = false;
-      // Fallback to localStorage
-      localStorage.setItem(LIKE_STORAGE_KEY, likes);
-      localStorage.setItem(USER_LIKED_KEY, isLiked);
     }
   }
 
@@ -556,12 +610,12 @@
   
   // Start real-time sync
   function startSync() {
-    // Clear any existing interval
+    if (!USE_API) return;
+    
     if (syncInterval) {
       clearInterval(syncInterval);
     }
     
-    // Poll for updates every 2 seconds
     syncInterval = setInterval(syncLikes, SYNC_INTERVAL);
   }
   
@@ -610,58 +664,75 @@
     }
   });
 
-  // Like functionality (Instagram-style: each person can like once globally)
+  // Like functionality (Instagram-style: each device can like once globally)
   heart.addEventListener('click', async () => {
-    if (isLoading || isSaving) return; // Prevent clicks while loading/saving
+    if (isLoading || isSaving) return;
     
     const previousLikes = likes;
     const previousIsLiked = isLiked;
+    const previousUsers = new Set(likedUsers);
     
     // Toggle like status
     if (!isLiked) {
-      // User is liking (add to global count)
+      // User is liking
       likes++;
+      likedUsers.add(deviceId);
       isLiked = true;
       updateUI();
       createConfetti();
     } else {
-      // User is unliking (remove from global count)
+      // User is unliking
       likes--;
+      likedUsers.delete(deviceId);
       isLiked = false;
       updateUI();
     }
     
-    // Save to cloud storage immediately
+    // Save changes
     try {
       await saveLikes();
-      // After save, sync to get any updates from other users
       await syncLikes();
     } catch (error) {
-      // Revert on error
       console.error('Failed to save like:', error);
       likes = previousLikes;
       isLiked = previousIsLiked;
+      likedUsers = previousUsers;
       updateUI();
     }
   });
   
   // Sync function to check for updates
   async function syncLikes() {
+    if (!USE_API) return;
+    
     try {
-      const likesResult = await window.storage.get(LIKE_STORAGE_KEY, true);
-      const newLikes = likesResult ? parseInt(likesResult.value) || 0 : 0;
+      const response = await fetch(`${API_CONFIG.baseUrl}/${API_CONFIG.binId}/latest`, {
+        headers: {
+          'X-Master-Key': API_CONFIG.apiKey
+        }
+      });
       
-      const userLikedResult = await window.storage.get(USER_LIKED_KEY, false);
-      const newIsLiked = userLikedResult ? userLikedResult.value === 'true' : false;
-      
-      // Update only if changed
-      if (newLikes !== likes || newIsLiked !== isLiked) {
-        likes = newLikes;
-        isLiked = newIsLiked;
-        updateUI();
+      if (response.ok) {
+        const data = await response.json();
+        const record = data.record;
+        const newLikes = record.likes || 0;
+        const newLikedUsers = new Set(record.likedUsers || []);
+        const newIsLiked = newLikedUsers.has(deviceId);
+        
+        // Update only if changed
+        if (newLikes !== likes || newIsLiked !== isLiked) {
+          likes = newLikes;
+          likedUsers = newLikedUsers;
+          isLiked = newIsLiked;
+          updateUI();
+          
+          // Update localStorage
+          localStorage.setItem('likes', likes.toString());
+          localStorage.setItem('likedUsers', JSON.stringify(Array.from(likedUsers)));
+        }
       }
     } catch (error) {
-      console.error('Sync error:', error);
+      console.warn('Sync error:', error);
     }
   }
 
