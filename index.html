@@ -485,11 +485,14 @@
   // Storage key for cross-device persistence
   const LIKE_STORAGE_KEY = 'byePrincessLikes';
   const USER_LIKED_KEY = 'byePrincessUserLiked';
+  const SYNC_INTERVAL = 2000; // Check for updates every 2 seconds
 
   // 🔄 Initialize like state
   let likes = 0;
   let isLiked = false;
   let isLoading = true;
+  let syncInterval = null;
+  let isSaving = false; // Prevent multiple simultaneous saves
   
   // 💾 Load likes from persistent storage (works across devices)
   async function loadLikes() {
@@ -516,13 +519,18 @@
   
   // 💾 Save likes to persistent storage
   async function saveLikes() {
+    if (isSaving) return; // Prevent race conditions
+    isSaving = true;
+    
     try {
-      // Save total count (shared)
+      // Save total count (shared across ALL users globally)
       await window.storage.set(LIKE_STORAGE_KEY, likes.toString(), true);
-      // Save user's like status (personal)
+      // Save user's like status (personal to this user across their devices)
       await window.storage.set(USER_LIKED_KEY, isLiked.toString(), false);
+      isSaving = false;
     } catch (error) {
       console.error('Error saving likes:', error);
+      isSaving = false;
       // Fallback to localStorage
       localStorage.setItem(LIKE_STORAGE_KEY, likes);
       localStorage.setItem(USER_LIKED_KEY, isLiked);
@@ -546,11 +554,30 @@
     updateHeartUI();
   }
   
+  // Start real-time sync
+  function startSync() {
+    // Clear any existing interval
+    if (syncInterval) {
+      clearInterval(syncInterval);
+    }
+    
+    // Poll for updates every 2 seconds
+    syncInterval = setInterval(syncLikes, SYNC_INTERVAL);
+  }
+  
   // Initialize UI
   async function init() {
     likeCount.textContent = '...'; // Loading indicator
     await loadLikes();
+    startSync(); // Start real-time syncing
   }
+  
+  // Cleanup on page unload
+  window.addEventListener('beforeunload', () => {
+    if (syncInterval) {
+      clearInterval(syncInterval);
+    }
+  });
 
   // Play/Pause functionality
   playBtn.addEventListener('click', () => {
@@ -583,29 +610,32 @@
     }
   });
 
-  // Like functionality (synced across devices)
+  // Like functionality (Instagram-style: each person can like once globally)
   heart.addEventListener('click', async () => {
-    if (isLoading) return; // Prevent clicks while loading
+    if (isLoading || isSaving) return; // Prevent clicks while loading/saving
     
     const previousLikes = likes;
     const previousIsLiked = isLiked;
     
+    // Toggle like status
     if (!isLiked) {
-      // Like the song
+      // User is liking (add to global count)
       likes++;
       isLiked = true;
       updateUI();
       createConfetti();
     } else {
-      // Unlike the song
+      // User is unliking (remove from global count)
       likes--;
       isLiked = false;
       updateUI();
     }
     
-    // Save to persistent storage
+    // Save to cloud storage immediately
     try {
       await saveLikes();
+      // After save, sync to get any updates from other users
+      await syncLikes();
     } catch (error) {
       // Revert on error
       console.error('Failed to save like:', error);
@@ -614,6 +644,26 @@
       updateUI();
     }
   });
+  
+  // Sync function to check for updates
+  async function syncLikes() {
+    try {
+      const likesResult = await window.storage.get(LIKE_STORAGE_KEY, true);
+      const newLikes = likesResult ? parseInt(likesResult.value) || 0 : 0;
+      
+      const userLikedResult = await window.storage.get(USER_LIKED_KEY, false);
+      const newIsLiked = userLikedResult ? userLikedResult.value === 'true' : false;
+      
+      // Update only if changed
+      if (newLikes !== likes || newIsLiked !== isLiked) {
+        likes = newLikes;
+        isLiked = newIsLiked;
+        updateUI();
+      }
+    } catch (error) {
+      console.error('Sync error:', error);
+    }
+  }
 
   // Confetti effect
   function createConfetti() {
