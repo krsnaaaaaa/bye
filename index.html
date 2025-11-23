@@ -13,13 +13,16 @@
   }
 
   body {
-    height: 100vh;
+    min-height: 100vh;
+    min-height: 100dvh; /* Dynamic viewport height for mobile */
     display: flex;
     justify-content: center;
     align-items: center;
     font-family: "Poppins", sans-serif;
     background: #0b0a14;
     overflow: hidden;
+    padding: 0;
+    margin: 0;
   }
 
   /* 🌈 Gradient Background */
@@ -48,6 +51,20 @@
     border-radius: 50%;
     animation: float 12s infinite ease-in-out;
   }
+
+  @media (max-width: 768px) {
+    .float-circle {
+      width: 80px;
+      height: 80px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .float-circle {
+      width: 60px;
+      height: 60px;
+    }
+  }
   @keyframes float {
     0% { transform: translateY(0) scale(1); }
     50% { transform: translateY(-40px) scale(1.1); }
@@ -60,6 +77,12 @@
     font-size: 22px;
     opacity: 0.9;
     animation: fly 8s infinite ease-in-out;
+  }
+
+  @media (max-width: 480px) {
+    .butterfly {
+      font-size: 18px;
+    }
   }
   @keyframes fly {
     0% { transform: translate(0, 0) rotate(0deg); }
@@ -76,6 +99,12 @@
     filter: drop-shadow(0 0 10px #ff8acb);
     animation: rotateHeart 9s linear infinite;
   }
+
+  @media (max-width: 480px) {
+    .soft-heart {
+      font-size: 20px;
+    }
+  }
   @keyframes rotateHeart {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
@@ -89,6 +118,12 @@
     opacity: 0.8;
     animation: starDrift 5s infinite ease-in-out;
   }
+
+  @media (max-width: 480px) {
+    .star {
+      font-size: 12px;
+    }
+  }
   @keyframes starDrift {
     0% { transform: translateY(0); opacity: 0.3; }
     50% { transform: translateY(-25px); opacity: 1; }
@@ -98,8 +133,9 @@
   /* 🌸 Player Card */
   .player {
     position: relative;
-    width: 340px;
-    padding: 28px;
+    width: 90%;
+    max-width: 340px;
+    padding: 28px 20px;
     background: rgba(255, 255, 255, 0.08);
     border-radius: 24px;
     backdrop-filter: blur(12px);
@@ -107,6 +143,16 @@
     text-align: center;
     z-index: 10;
     transition: box-shadow 0.3s ease;
+    margin: 10px;
+  }
+
+  @media (max-width: 480px) {
+    .player {
+      width: 95%;
+      padding: 20px 15px;
+      margin: 5px;
+      border-radius: 20px;
+    }
   }
 
   .player.pulse {
@@ -129,20 +175,28 @@
     object-fit: cover;
   }
 
+  @media (max-width: 480px) {
+    .pfp {
+      width: 110px;
+      height: 110px;
+      border: 3px solid #ff9cd1;
+    }
+  }
+
   h1 {
     color: #fff;
-    font-size: 35px;
+    font-size: clamp(28px, 8vw, 35px);
     font-weight: 600;
     margin-bottom: 8px;
     font-family: 'Monotype Corsiva', cursive;
-     color:#ff97dd;
+    color:#ff97dd;
     text-shadow: 2px 2px 6px #ffb6c1, 0 0 10px #ff69b4;
   }
 
   /* 🎀 Now Playing */
   .now-playing {
     color: #ffbdf0;
-    font-size: 18px;
+    font-size: clamp(16px, 4vw, 18px);
     text-shadow: 0 0 10px #ff97dd, 0 0 18px #ff5bc9;
     opacity: 0;
     transition: opacity 0.4s ease;
@@ -163,6 +217,14 @@
     margin: 22px 0;
   }
 
+  @media (max-width: 480px) {
+    .wave {
+      height: 35px;
+      margin: 15px 0;
+      gap: 4px;
+    }
+  }
+
   .bar {
     width: 6px;
     height: 12px;
@@ -170,6 +232,13 @@
     border-radius: 4px;
     animation: bounce 0.8s ease-in-out infinite;
     animation-play-state: paused;
+  }
+
+  @media (max-width: 480px) {
+    .bar {
+      width: 5px;
+      height: 10px;
+    }
   }
 
   .bar:nth-child(2) { animation-delay: 0.1s; }
@@ -189,6 +258,13 @@
   /* 🎚 Progress Bar */
   .progress-container {
     margin: 18px 0;
+    padding: 0 5px;
+  }
+
+  @media (max-width: 480px) {
+    .progress-container {
+      margin: 15px 0;
+    }
   }
 
   input[type="range"] {
@@ -230,6 +306,13 @@
     margin-top: 20px;
   }
 
+  @media (max-width: 480px) {
+    .controls {
+      gap: 15px;
+      margin-top: 15px;
+    }
+  }
+
   .btn {
     width: 60px;
     height: 60px;
@@ -244,6 +327,22 @@
     align-items: center;
     justify-content: center;
     color: #fff;
+  }
+
+  @media (max-width: 480px) {
+    .btn {
+      width: 55px;
+      height: 55px;
+      font-size: 22px;
+    }
+  }
+
+  @media (max-width: 360px) {
+    .btn {
+      width: 50px;
+      height: 50px;
+      font-size: 20px;
+    }
   }
 
   .btn:hover {
@@ -271,6 +370,18 @@
     user-select: none;
   }
 
+  @media (max-width: 480px) {
+    .heart {
+      font-size: 28px;
+    }
+  }
+
+  @media (max-width: 360px) {
+    .heart {
+      font-size: 26px;
+    }
+  }
+
   .heart:hover {
     transform: scale(1.1);
   }
@@ -286,6 +397,20 @@
     font-size: 20px;
     font-weight: 600;
     min-width: 30px;
+  }
+
+  @media (max-width: 480px) {
+    .like-count {
+      font-size: 18px;
+      min-width: 25px;
+    }
+  }
+
+  @media (max-width: 360px) {
+    .like-count {
+      font-size: 16px;
+      min-width: 22px;
+    }
   }
 
   /* 🎉 Confetti */
@@ -317,8 +442,7 @@
 
 <!-- Music Player -->
 <div class="player" id="player">
-  <img src="https://raw.githubusercontent.com/krsnaaaaaa/by/main/pp.jpeg
-" class="pfp" alt="Profile Picture" />
+  <img src="https://raw.githubusercontent.com/krsnaaaaaa/bye/main/girl.jpeg" class="pfp" alt="Profile Picture" />
   <h1>Bye Princess</h1>
   <div class="now-playing" id="nowPlaying">Now Playing…</div>
 
@@ -363,10 +487,8 @@
 
   // 🔄 Initialize like state: Retrieve from localStorage or default to 0
   let likes = parseInt(localStorage.getItem(LIKE_STORAGE_KEY)) || 0;
-  // Determine initial isLiked state based on whether likes is > 0
-  // NOTE: A more robust solution for multiple users would store a unique identifier for the current user and check if they liked it.
-  // For a single-user, single-song player, we'll assume it's liked if the stored count is 1 or more.
-  let isLiked = likes > 0; 
+  // Each viewer starts with not having liked it
+  let isLiked = false;
   
   // 💾 Function to save the like count to localStorage
   function saveLikes() {
@@ -421,7 +543,7 @@
     }
   });
 
-  // Like functionality (Modified to include localStorage update)
+  // Like functionality (Each click toggles and updates total count)
   heart.addEventListener('click', () => {
     if (!isLiked) {
       // Like the song
@@ -430,9 +552,7 @@
       createConfetti();
     } else {
       // Unlike the song
-      if (likes > 0) {
-        likes--;
-      }
+      likes--;
       isLiked = false;
     }
     
